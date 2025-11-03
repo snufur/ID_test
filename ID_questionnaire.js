@@ -1116,12 +1116,39 @@ class IndividualDifferenceManager {
         // 检查进度
         const progress = this.checkProgress();
         
-        // 1. EQ量表（同理心量表）
+        // 1. IDAQ量表（拟人化个体差异量表）- 最先回答
+        if (!progress || !progress.IDAQ) {
+            const resumeIDAQNum = this.getResumeQuestionNumber('IDAQ');
+            
+            if (resumeIDAQNum === 0) {
+                const screenResult = await this.ui.showScreen('接下来将开始第一部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n拟人化个体差异量表（IDAQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共15题\n请根据1-7分进行评估', { showContinue: true });
+                if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
+            } else {
+                const screenResult = await this.ui.showScreen(`拟人化个体差异量表（IDAQ）\n\n检测到未完成的问卷，从第${resumeIDAQNum + 1}题继续`, { showContinue: true });
+                if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
+            }
+            
+            const IDAQScores = await this.runIDAQQuestionnaire(resumeIDAQNum);
+            if (IDAQScores === 'escape') return 'escape';
+            
+            // 保存IDAQ数据
+            this.data.individualDifferenceData.IDAQ = {};
+            IDAQScores.forEach((score, index) => {
+                this.data.individualDifferenceData.IDAQ[`Q${index + 1}`] = score;
+            });
+            
+            this.saveToLocalStorage();
+            
+            // 第一部分完成提示
+            await this.ui.showScreen('✓ 第一部分问卷已完成！\n\n请稍作休息，准备进入第二部分。', { showContinue: true });
+        }
+        
+        // 2. EQ量表（同理心量表）
         if (!progress || !progress.EQ) {
             const resumeEQNum = this.getResumeQuestionNumber('EQ');
             
             if (resumeEQNum === 0) {
-                const screenResult = await this.ui.showScreen('接下来将开始第一部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n同理心量表（EQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共40题\n请根据您的真实感受作答', { showContinue: true });
+                const screenResult = await this.ui.showScreen('接下来将开始第二部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n同理心量表（EQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共40题\n请根据您的真实感受作答', { showContinue: true });
                 if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
             } else {
                 const screenResult = await this.ui.showScreen(`同理心量表（EQ）\n\n检测到未完成的问卷，从第${resumeEQNum + 1}题继续`, { showContinue: true });
@@ -1139,16 +1166,16 @@ class IndividualDifferenceManager {
             
             this.saveToLocalStorage();
             
-            // 第一部分完成提示
-            await this.ui.showScreen('✓ 第一部分问卷已完成！\n\n请稍作休息，准备进入第二部分。', { showContinue: true });
+            // 第二部分完成提示
+            await this.ui.showScreen('✓ 第二部分问卷已完成！\n\n请稍作休息，准备进入第三部分。', { showContinue: true });
         }
         
-        // 2. AQ量表（孤独症商数量表）
+        // 3. AQ量表（孤独症商数量表）
         if (!progress || !progress.AQ) {
             const resumeAQNum = this.getResumeQuestionNumber('AQ');
             
             if (resumeAQNum === 0) {
-                const screenResult = await this.ui.showScreen('接下来将开始第二部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n孤独症商数量表（AQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共50题\n请根据您的真实感受作答', { showContinue: true });
+                const screenResult = await this.ui.showScreen('接下来将开始第三部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n孤独症商数量表（AQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共50题\n请根据您的真实感受作答', { showContinue: true });
                 if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
             } else {
                 const screenResult = await this.ui.showScreen(`孤独症商数量表（AQ）\n\n检测到未完成的问卷，从第${resumeAQNum + 1}题继续`, { showContinue: true });
@@ -1166,16 +1193,16 @@ class IndividualDifferenceManager {
             
             this.saveToLocalStorage();
             
-            // 第二部分完成提示
-            await this.ui.showScreen('✓ 第二部分问卷已完成！\n\n请稍作休息，准备进入第三部分。', { showContinue: true });
+            // 第三部分完成提示
+            await this.ui.showScreen('✓ 第三部分问卷已完成！\n\n请稍作休息，准备进入第四部分。', { showContinue: true });
         }
         
-        // 3. GAAIS量表（通用人工智能态度量表）
+        // 4. GAAIS量表（通用人工智能态度量表）
         if (!progress || !progress.GAAIS) {
             const resumeGAAISNum = this.getResumeQuestionNumber('GAAIS');
             
             if (resumeGAAISNum === 0) {
-                const screenResult = await this.ui.showScreen('接下来将开始第三部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n通用人工智能态度量表（GAAIS）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共20题\n了解您对人工智能的态度', { showContinue: true });
+                const screenResult = await this.ui.showScreen('接下来将开始第四部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n通用人工智能态度量表（GAAIS）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共20题\n了解您对人工智能的态度', { showContinue: true });
                 if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
             } else {
                 const screenResult = await this.ui.showScreen(`通用人工智能态度量表（GAAIS）\n\n检测到未完成的问卷，从第${resumeGAAISNum + 1}题继续`, { showContinue: true });
@@ -1189,33 +1216,6 @@ class IndividualDifferenceManager {
             this.data.individualDifferenceData.GAAIS = {};
             GAAISScores.forEach((score, index) => {
                 this.data.individualDifferenceData.GAAIS[`Q${index + 1}`] = score;
-            });
-            
-            this.saveToLocalStorage();
-            
-            // 第三部分完成提示
-            await this.ui.showScreen('✓ 第三部分问卷已完成！\n\n请稍作休息，准备进入第四部分。', { showContinue: true });
-        }
-        
-        // 4. IDAQ量表（拟人化个体差异量表）
-        if (!progress || !progress.IDAQ) {
-            const resumeIDAQNum = this.getResumeQuestionNumber('IDAQ');
-            
-            if (resumeIDAQNum === 0) {
-                const screenResult = await this.ui.showScreen('接下来将开始第四部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n拟人化个体差异量表（IDAQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共15题\n请根据1-7分进行评估', { showContinue: true });
-                if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
-            } else {
-                const screenResult = await this.ui.showScreen(`拟人化个体差异量表（IDAQ）\n\n检测到未完成的问卷，从第${resumeIDAQNum + 1}题继续`, { showContinue: true });
-                if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
-            }
-            
-            const IDAQScores = await this.runIDAQQuestionnaire(resumeIDAQNum);
-            if (IDAQScores === 'escape') return 'escape';
-            
-            // 保存IDAQ数据
-            this.data.individualDifferenceData.IDAQ = {};
-            IDAQScores.forEach((score, index) => {
-                this.data.individualDifferenceData.IDAQ[`Q${index + 1}`] = score;
             });
             
             this.saveToLocalStorage();
@@ -1380,6 +1380,15 @@ class IndividualDifferenceManager {
                 console.log('个体差异问卷被取消');
                 // 退出时确保保存当前进度
                 this.saveToLocalStorage();
+                // 如果有任何数据，则下载JSON文件
+                const hasData = this.data && this.data.individualDifferenceData && 
+                               Object.keys(this.data.individualDifferenceData).length > 0;
+                if (hasData) {
+                    this.downloadData();
+                    await this.ui.showScreen('当前进度已保存并已下载。\n\n数据文件已保存到您的下载文件夹。\n\n您可以稍后使用相同编号继续完成。\n\n按回车键退出。', { showContinue: true });
+                } else {
+                    await this.ui.showScreen('当前进度已保存到本地。\n\n您可以稍后使用相同编号继续完成。\n\n按回车键退出。', { showContinue: true });
+                }
                 return;
             }
 
