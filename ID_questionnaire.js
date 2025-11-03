@@ -187,7 +187,7 @@ class IndividualDifferenceUI {
     }
 
     // 显示评分选择界面（带2秒倒计时，鼠标点击选择）
-    showScoreSelection(prompt, minScore = 1, maxScore = 7) {
+    showScoreSelection(prompt, minScore = 1, maxScore = 7, labels = null) {
         return new Promise((resolve) => {
             const screen = document.createElement('div');
             screen.className = 'experiment-screen';
@@ -219,6 +219,21 @@ class IndividualDifferenceUI {
             }
             
             screen.appendChild(scoreContainer);
+            
+            // 如果有标签，显示在数字下方
+            if (labels && Array.isArray(labels) && labels.length === (maxScore - minScore + 1)) {
+                const labelsContainer = document.createElement('div');
+                labelsContainer.className = 'score-labels-container';
+                
+                labels.forEach(label => {
+                    const labelDiv = document.createElement('div');
+                    labelDiv.className = 'score-label';
+                    labelDiv.textContent = label;
+                    labelsContainer.appendChild(labelDiv);
+                });
+                
+                screen.appendChild(labelsContainer);
+            }
             
             const instructionDiv = document.createElement('div');
             instructionDiv.className = 'text-display';
@@ -742,6 +757,16 @@ class IndividualDifferenceManager {
             if (completedCount === 15) progress.IDAQ = true;
         }
         
+        // 检查AnthroQ量表完成情况（20题）
+        if (this.data.individualDifferenceData.AnthroQ) {
+            const anthroQData = this.data.individualDifferenceData.AnthroQ;
+            let completedCount = 0;
+            for (let i = 1; i <= 20; i++) {
+                if (anthroQData[`Q${i}`] !== undefined) completedCount++;
+            }
+            if (completedCount === 20) progress.AnthroQ = true;
+        }
+        
         return progress;
     }
 
@@ -999,6 +1024,88 @@ class IndividualDifferenceManager {
         return scores;
     }
 
+    // 拟人化问卷（Anthropomorphism Questionnaire, AnthroQ）
+    async runAnthroQuestionnaire(resumeFromQuestion = 0) {
+        const instruction = `接下来是拟人化问卷（Anthropomorphism Questionnaire）。
+        
+请您仔细阅读每一道题目，并根据您的实际情况选择最符合的选项。
+
+评分标准：
+1 = 完全不
+2 = 几乎不
+3 = 有一点不
+4 = 中等程度
+5 = 有一点
+6 = 非常
+7 = 非常同意
+
+请根据您的真实感受作答，没有对错之分。
+
+每个问题将有 2 秒思考时间
+倒计时结束后可以选择评分。`;
+        
+        await this.ui.showScreen(instruction, { showContinue: true });
+        
+        const questions = [
+            "第1题\n我有时会想，我的电脑在我对它大喊之后是否故意运行得更慢。",
+            "第2题\n小时候，当我离开房间时，我总是确保我最喜欢的玩具是舒适的（例如，坐起来或被塞进被窝）。",
+            "第3题\n小时候，我有时会对我的一些最喜欢的玩具说\"你好\"和\"晚安\"。",
+            "第4题\n小时候，我为我最喜欢的玩具举办过生日派对。",
+            "第5题\n有时我觉得我的电脑/打印机是故意刁难我。",
+            "第6题\n我有时会想，当我好好清洁我的个人物品时，它们是否会感激。",
+            "第7题\n有时我觉得天气是故意变坏，为了破坏社交活动。",
+            "第8题\n小时候，当我收拾玩具时，我会确保把散落的孤单玩具和其他玩具放在一起，以免它们感到孤独。",
+            "第9题\n我确实认为某些汽车有特定的个性。",
+            "第10题\n如果小时候我扔掉一个玩具，我会担心它可能认为我拒绝了它。",
+            "第11题\n如果我不小心弄坏了我最喜欢的物品之一，我会向它道歉，因为我的笨拙。",
+            "第12题\n小时候，我觉得我的一些玩具生病了。",
+            "第13题\n我认为有些树很友好，而有些则带有威胁的气息。",
+            "第14题\n我有时想，如果让我的电脑/打印机感到快乐和/或被需要，它们就不太容易出故障。",
+            "第15题\n小时候，我有时觉得我的一些玩具心情不好。",
+            "第16题\n小时候，我曾担心如果我不在了，我最喜欢的玩具会如何应对。",
+            "第17题\n我有时觉得大海会生气。",
+            "第18题\n我有时想，如果玩具被存放在黑暗的阁楼或房间里看不见的地方，它们可能会感到孤独或不被人爱。",
+            "第19题\n我选择一辆新车/电器的一部分原因是，当我第一次看到它时，我觉得它有一个友好的个性。",
+            "第20题\n小时候，当我收拾玩具时，我会确保那些是朋友的玩具被并排放置。"
+        ];
+        
+        const scores = [];
+        
+        // 如果有已保存的数据，从上次中断的地方继续
+        if (resumeFromQuestion > 0 && this.data && this.data.individualDifferenceData && this.data.individualDifferenceData.AnthroQ) {
+            // 加载已完成的答案
+            const saved = this.data.individualDifferenceData.AnthroQ;
+            for (let i = 0; i < resumeFromQuestion; i++) {
+                const key = `Q${i + 1}`;
+                scores.push(saved[key]);
+            }
+            console.log(`从第${resumeFromQuestion + 1}题继续完成问卷`);
+        }
+        
+        // AnthroQ量表的7点评分标签
+        const anthroLabels = [
+            '完全不',
+            '几乎不',
+            '有一点不',
+            '中等程度',
+            '有一点',
+            '非常',
+            '非常同意'
+        ];
+        
+        for (let i = resumeFromQuestion; i < questions.length; i++) {
+            const question = questions[i];
+            const score = await this.ui.showScoreSelection(question, 1, 7, anthroLabels);
+            if (score === 'escape') return 'escape';
+            scores.push(score);
+            
+            // 每完成一题就保存一次（实现实时保存功能）
+            this.savePartialData('AnthroQ', scores);
+        }
+        
+        return scores;
+    }
+
     // 拟人化个体差异量表（IDAQ）
     async runIDAQQuestionnaire(resumeFromQuestion = 0) {
         const instruction = `接下来是拟人化个体差异量表（IDAQ）。
@@ -1044,9 +1151,20 @@ class IndividualDifferenceManager {
             console.log(`从第${resumeFromQuestion + 1}题继续完成问卷`);
         }
         
+        // IDAQ量表的7点评分标签
+        const idaqLabels = [
+            '完全没有',
+            '几乎没有',
+            '有一点',
+            '中等程度',
+            '较多',
+            '非常多',
+            '完全有'
+        ];
+        
         for (let i = resumeFromQuestion; i < questions.length; i++) {
             const question = questions[i];
-            const score = await this.ui.showScoreSelection(question, 1, 7);
+            const score = await this.ui.showScoreSelection(question, 1, 7, idaqLabels);
             if (score === 'escape') return 'escape';
             scores.push(score);
             
@@ -1087,6 +1205,7 @@ class IndividualDifferenceManager {
         
         // 根据不同量表类型设定题目总数
         const questionCounts = {
+            'AnthroQ': 20,
             'EQ': 40,
             'AQ': 50,
             'GAAIS': 20,
@@ -1116,12 +1235,39 @@ class IndividualDifferenceManager {
         // 检查进度
         const progress = this.checkProgress();
         
-        // 1. IDAQ量表（拟人化个体差异量表）- 最先回答
+        // 1. AnthroQ量表（拟人化问卷）- 最先回答
+        if (!progress || !progress.AnthroQ) {
+            const resumeAnthroQNum = this.getResumeQuestionNumber('AnthroQ');
+            
+            if (resumeAnthroQNum === 0) {
+                const screenResult = await this.ui.showScreen('接下来将开始第一部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n拟人化问卷（Anthropomorphism Questionnaire）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共20题\n请根据1-7分进行评估', { showContinue: true });
+                if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
+            } else {
+                const screenResult = await this.ui.showScreen(`拟人化问卷（Anthropomorphism Questionnaire）\n\n检测到未完成的问卷，从第${resumeAnthroQNum + 1}题继续`, { showContinue: true });
+                if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
+            }
+            
+            const AnthroQScores = await this.runAnthroQuestionnaire(resumeAnthroQNum);
+            if (AnthroQScores === 'escape') return 'escape';
+            
+            // 保存AnthroQ数据
+            this.data.individualDifferenceData.AnthroQ = {};
+            AnthroQScores.forEach((score, index) => {
+                this.data.individualDifferenceData.AnthroQ[`Q${index + 1}`] = score;
+            });
+            
+            this.saveToLocalStorage();
+            
+            // 第一部分完成提示
+            await this.ui.showScreen('✓ 第一部分问卷已完成！\n\n请稍作休息，准备进入第二部分。', { showContinue: true });
+        }
+        
+        // 2. IDAQ量表（拟人化个体差异量表）
         if (!progress || !progress.IDAQ) {
             const resumeIDAQNum = this.getResumeQuestionNumber('IDAQ');
             
             if (resumeIDAQNum === 0) {
-                const screenResult = await this.ui.showScreen('接下来将开始第一部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n拟人化个体差异量表（IDAQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共15题\n请根据1-7分进行评估', { showContinue: true });
+                const screenResult = await this.ui.showScreen('接下来将开始第二部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n拟人化个体差异量表（IDAQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共15题\n请根据1-7分进行评估', { showContinue: true });
                 if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
             } else {
                 const screenResult = await this.ui.showScreen(`拟人化个体差异量表（IDAQ）\n\n检测到未完成的问卷，从第${resumeIDAQNum + 1}题继续`, { showContinue: true });
@@ -1139,16 +1285,16 @@ class IndividualDifferenceManager {
             
             this.saveToLocalStorage();
             
-            // 第一部分完成提示
-            await this.ui.showScreen('✓ 第一部分问卷已完成！\n\n请稍作休息，准备进入第二部分。', { showContinue: true });
+            // 第二部分完成提示
+            await this.ui.showScreen('✓ 第二部分问卷已完成！\n\n请稍作休息，准备进入第三部分。', { showContinue: true });
         }
         
-        // 2. EQ量表（同理心量表）
+        // 3. EQ量表（同理心量表）
         if (!progress || !progress.EQ) {
             const resumeEQNum = this.getResumeQuestionNumber('EQ');
             
             if (resumeEQNum === 0) {
-                const screenResult = await this.ui.showScreen('接下来将开始第二部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n同理心量表（EQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共40题\n请根据您的真实感受作答', { showContinue: true });
+                const screenResult = await this.ui.showScreen('接下来将开始第三部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n同理心量表（EQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共40题\n请根据您的真实感受作答', { showContinue: true });
                 if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
             } else {
                 const screenResult = await this.ui.showScreen(`同理心量表（EQ）\n\n检测到未完成的问卷，从第${resumeEQNum + 1}题继续`, { showContinue: true });
@@ -1166,16 +1312,16 @@ class IndividualDifferenceManager {
             
             this.saveToLocalStorage();
             
-            // 第二部分完成提示
-            await this.ui.showScreen('✓ 第二部分问卷已完成！\n\n请稍作休息，准备进入第三部分。', { showContinue: true });
+            // 第三部分完成提示
+            await this.ui.showScreen('✓ 第三部分问卷已完成！\n\n请稍作休息，准备进入第四部分。', { showContinue: true });
         }
         
-        // 3. AQ量表（孤独症商数量表）
+        // 4. AQ量表（孤独症商数量表）
         if (!progress || !progress.AQ) {
             const resumeAQNum = this.getResumeQuestionNumber('AQ');
             
             if (resumeAQNum === 0) {
-                const screenResult = await this.ui.showScreen('接下来将开始第三部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n孤独症商数量表（AQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共50题\n请根据您的真实感受作答', { showContinue: true });
+                const screenResult = await this.ui.showScreen('接下来将开始第四部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n孤独症商数量表（AQ）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共50题\n请根据您的真实感受作答', { showContinue: true });
                 if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
             } else {
                 const screenResult = await this.ui.showScreen(`孤独症商数量表（AQ）\n\n检测到未完成的问卷，从第${resumeAQNum + 1}题继续`, { showContinue: true });
@@ -1193,16 +1339,16 @@ class IndividualDifferenceManager {
             
             this.saveToLocalStorage();
             
-            // 第三部分完成提示
-            await this.ui.showScreen('✓ 第三部分问卷已完成！\n\n请稍作休息，准备进入第四部分。', { showContinue: true });
+            // 第四部分完成提示
+            await this.ui.showScreen('✓ 第四部分问卷已完成！\n\n请稍作休息，准备进入第五部分。', { showContinue: true });
         }
         
-        // 4. GAAIS量表（通用人工智能态度量表）
+        // 5. GAAIS量表（通用人工智能态度量表）
         if (!progress || !progress.GAAIS) {
             const resumeGAAISNum = this.getResumeQuestionNumber('GAAIS');
             
             if (resumeGAAISNum === 0) {
-                const screenResult = await this.ui.showScreen('接下来将开始第四部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n通用人工智能态度量表（GAAIS）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共20题\n了解您对人工智能的态度', { showContinue: true });
+                const screenResult = await this.ui.showScreen('接下来将开始第五部分问卷\n\n━━━━━━━━━━━━━━━━━━━━━━\n通用人工智能态度量表（GAAIS）\n━━━━━━━━━━━━━━━━━━━━━━\n\n共20题\n了解您对人工智能的态度', { showContinue: true });
                 if (screenResult === 'escape') { this.saveToLocalStorage(); return 'escape'; }
             } else {
                 const screenResult = await this.ui.showScreen(`通用人工智能态度量表（GAAIS）\n\n检测到未完成的问卷，从第${resumeGAAISNum + 1}题继续`, { showContinue: true });
